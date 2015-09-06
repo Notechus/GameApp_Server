@@ -31,16 +31,10 @@ public class Game {
 
     //Input for networking packet
     private Input input;
-    private UDPClient client;
-    private static final float PACKET_INTERVAL = 1000 / 30; //close to 30 per sec
-
-    //to trace packet rate
-    private long firstPacketTime = 0L;
-    private int count = 0;
+    private UDPServer server;
 
     //Timer class
-    private Timer timer;
-
+    //private Timer timer;
     //Game Objects
     private Level level1;
 
@@ -50,8 +44,8 @@ public class Game {
         // will print the error message in System.err.
         glfwSetErrorCallback(errorCallback = errorCallbackPrint(System.err));
         //Run UDP Client
-        client = new UDPClient();
-        client.start();
+        server = new UDPServer();
+        server.start();
         //init input which will be sent
         input = new Input();
 
@@ -75,7 +69,7 @@ public class Game {
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-        windowID = glfwCreateWindow(WIDTH, HEIGHT, "Game Client", NULL, NULL);
+        windowID = glfwCreateWindow(WIDTH, HEIGHT, "Game Server", NULL, NULL);
 
         //we check if window was created properly
         if (windowID == NULL) {
@@ -118,27 +112,19 @@ public class Game {
                 (GLFWvidmode.height(vidmode) - HEIGHT) / 2
         );
 
-        //Setup last loop time
-        timer = new Timer();
-
         //init game object
         level1 = new Level();
     }
 
     public void input() {
-        //send packets to server and recieve rep
-        //TODO: recieve rep
-        //if ((System.nanoTime() - client.getLastSendTime()) / 1000000 > PACKET_INTERVAL) {
-        Packet p = new Packet("input", input);
-        client.send(p);
-        ++count;
-        if (firstPacketTime == 0L) {
-            firstPacketTime = System.nanoTime();
+        input = server.getInput();
+        if (input.isDown()) {
+            System.out.println("down we go");
         }
-        //}
+        level1.setInput(input);
     }
 
-    public void render(float alpha) {
+    public void render() {
         // Clear the screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //glClearColor(1.0f, 1.0f, 1.0f, 1.0f); //white
@@ -156,54 +142,48 @@ public class Game {
 
         level1.update();
 
-        if (KeyboardInput.isKeyDown(GLFW_KEY_SPACE)) {
-            System.out.println("you jumped");
-            input.setSpace(true);
-        }
+        /*if (KeyboardInput.isKeyDown(GLFW_KEY_SPACE)) {
+         System.out.println("you jumped");
+         input.setSpace(true);
+         }*/
     }
 
     public void loop() {
 
-        //init fixed timestep
-        float delta;
-        float accumulator = 0f;
-        float interval = 1f / 30f;
-        float alpha;
+        long lastTime = System.nanoTime();
+        double delta = 0.0;
+        double ns = 1000000000.0 / 60.0;
+        long timer = System.currentTimeMillis();
+        int updates = 0;
+        int frames = 0;
 
-        // Run the rendering loop until the user has attempted to close
-        // the windowID or has pressed the ESCAPE key.
         while (glfwWindowShouldClose(windowID) == GL_FALSE) {
+            long now = System.nanoTime();
+            delta += (now - lastTime) / ns;
+            lastTime = now;
 
-            /* Get delta time and update the accumulator */
-            delta = timer.getDelta();
-            accumulator += delta;
-            input();
-            while (accumulator >= interval) {
-                // Get input, update and render
-
+            if (delta >= 1.0) {
+                input();
                 update();
-                timer.updateUPS();
-                accumulator -= interval;
+                updates++;
+                delta--;
+
             }
+            render();
+            frames++;
 
-            /* Calculate alpha value for interpolation */
-            alpha = accumulator / interval;
-
-            /* Render game and update timer FPS */
-            render(alpha);
-            timer.updateFPS();
-
-            /* Update timer */
-            timer.update();
+            if (System.currentTimeMillis() - timer > 1000) {
+                timer += 1000;
+                //System.out.println(updates + " UPS, " + frames + " FPS");
+                updates = 0;
+                frames = 0;
+            }
         }
     }
 
     public void dispose() {
-
         //Stop UDP Client
-        client.stop();
-
-        System.out.println("Sent " + count + " over " + (client.getLastSendTime() - firstPacketTime) / 1000000000 + " seconds");
+        server.stop();
     }
 
     public void run() {
@@ -214,7 +194,7 @@ public class Game {
             running = true;
             loop();
 
-            //dispose shader
+            //dispose 
             dispose();
 
             // Release window and window callbacks

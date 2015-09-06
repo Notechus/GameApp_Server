@@ -1,6 +1,7 @@
 package gameEngine;
 
 import graphicEngine.ShaderManager;
+import networking.Input;
 
 /**
  *
@@ -24,8 +25,14 @@ public class Level {
 
         //set player pos
         player1.getPosition().setX(-0.5f);
+        player1.getPosition().setY(0.0f);
+
         player2.getPosition().setX(0.5f);
-        //ball1.getPosition().setX(0.0f);
+        player2.getPosition().setY(0.0f);
+
+        //set ball pos
+        ball1.getPosition().setX(0.0f);
+        ball1.getPosition().setY(0.0f);
     }
 
     public void update() {
@@ -49,5 +56,18 @@ public class Level {
         shaderManager.getShader1().setUniform3f("pos", player2.getPosition());
         player2.draw();
         shaderManager.getShader1().stop();
+    }
+
+    public void setInput(Input input) {
+        player1.setInput(input);
+        player2.setInput(input);
+    }
+
+    public Input getInput(int number) {
+        if (number == 1) {
+            return player1.getInput();
+        } else {
+            return player2.getInput();
+        }
     }
 }
